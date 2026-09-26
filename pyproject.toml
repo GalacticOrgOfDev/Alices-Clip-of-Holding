@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alices-clip-of-holding"
-version = "1.0.0"
+version = "1.1.0"
 description = "A bag of holding for the Windows clipboard. Copy archives every item; Ctrl+V picks which one to paste."
 readme = "README.md"
 requires-python = ">=3.10"

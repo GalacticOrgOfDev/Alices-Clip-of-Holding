@@ -6,6 +6,6 @@ Paste (Ctrl+V) opens a picker over that folder instead of blindly emitting
 only the most recent item.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __app_name__ = "Alice's Clip of Holding"
 __app_id__ = "AlicesClipOfHolding"
