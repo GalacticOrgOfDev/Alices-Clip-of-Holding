@@ -5,7 +5,9 @@ from __future__ import annotations
 import logging
 import sys
 import tkinter as tk
+from pathlib import Path
 
+from alices_clip.actions import paste_record_into_directory
 from alices_clip.config import APP_TITLE, AppConfig, default_data_dir, load_config
 from alices_clip.hotkeys import HotkeyEvent, HotkeyHook, send_ctrl_v
 from alices_clip.models import ClipRecord
@@ -21,12 +23,7 @@ class AliceApp:
     """Long-running tray application that owns the Tk main loop."""
 
     def __init__(self, config: AppConfig | None = None) -> None:
-        """Build every subsystem but do not start loops yet.
-
-        Args:
-            config: Optional override used by tests. Production loads
-                ``config.json`` from the per-user data directory.
-        """
+        """Build every subsystem but do not start loops yet."""
         self.data_dir = default_data_dir()
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.config = config if config is not None else load_config(self.data_dir)
@@ -49,11 +46,7 @@ class AliceApp:
         self._running = False
 
     def run(self) -> int:
-        """Start hooks, tray, and the Tk loop.
-
-        Returns:
-            Process exit code. ``0`` on a clean quit.
-        """
+        """Start hooks, tray, and the Tk loop."""
         if sys.platform != "win32":
             LOGGER.error("Alice's Clip of Holding requires Windows.")
             return 2
@@ -69,12 +62,7 @@ class AliceApp:
         return 0
 
     def stop(self) -> None:
-        """Tear down tray, hook, and Tk.
-
-        Notes:
-            Tray and Tk teardown can raise if the window is already gone.
-            Those failures are logged and must not block process exit.
-        """
+        """Tear down tray, hook, and Tk."""
         self._running = False
         if self.tray_icon is not None:
             try:
@@ -88,12 +76,7 @@ class AliceApp:
             LOGGER.error("Tk destroy failed", exc_info=True)
 
     def _tick(self) -> None:
-        """One main-loop quantum: clipboard poll + hotkey drain.
-
-        Notes:
-            Clipboard and hook failures are isolated so one bad paste
-            event cannot kill the tray process.
-        """
+        """One main-loop quantum: clipboard poll + hotkey drain."""
         if not self._running:
             return
         try:
@@ -115,11 +98,7 @@ class AliceApp:
         self.root.after(0, self.picker.open)
 
     def _paste_record(self, record: ClipRecord) -> None:
-        """Restore ``record`` onto the OS clipboard and send Ctrl+V.
-
-        Args:
-            record: Clip chosen in the picker.
-        """
+        """Restore ``record`` onto the OS clipboard and send Ctrl+V."""
         restored = self.bag.restore_to_clipboard(record)
         if not restored:
             LOGGER.error("Could not restore clip %s", record.clip_id)
@@ -135,12 +114,29 @@ class AliceApp:
         self.root.after(40, _send)
 
 
-def configure_logging(data_dir) -> None:
-    """Write logs next to the bag so install problems are diagnosable.
+def run_folder_paste_picker(destination: Path) -> int:
+    """Open the bag picker and write the chosen clip into ``destination``."""
+    target = Path(destination)
+    app = AliceApp()
+    chosen = {"ok": False}
 
-    Args:
-        data_dir: Per-user application data directory.
-    """
+    def _on_pick(record: ClipRecord) -> None:
+        paste_record_into_directory(record, target)
+        chosen["ok"] = True
+        app.stop()
+
+    def _on_cancel() -> None:
+        app.stop()
+
+    app.picker.on_pick = _on_pick
+    app.picker.on_cancel = _on_cancel
+    app.root.after(0, app.picker.open)
+    app.root.mainloop()
+    return 0 if chosen["ok"] else 1
+
+
+def configure_logging(data_dir) -> None:
+    """Write logs next to the bag so install problems are diagnosable."""
     log_path = data_dir / "alice.log"
     logging.basicConfig(
         level=logging.INFO,
