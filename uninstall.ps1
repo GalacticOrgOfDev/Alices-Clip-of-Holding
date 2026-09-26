@@ -1,37 +1,25 @@
 <#
 .SYNOPSIS
-    Remove Alice's Clip of Holding from this user account.
+    Remove Alice's Clip of Holding. Asks whether to keep or delete clip files.
 #>
 [CmdletBinding()]
 param()
 
 $ErrorActionPreference = "Stop"
 $AppId = "AlicesClipOfHolding"
-$AppTitle = "Alice's Clip of Holding"
 $DataDir = Join-Path $env:LOCALAPPDATA $AppId
+$Exe = Join-Path $DataDir "bin\AlicesClipOfHolding.exe"
+$VenvPy = Join-Path $DataDir "venv\Scripts\python.exe"
 
-Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -and $_.CommandLine -like "*alices_clip*" } |
-    ForEach-Object {
-        try { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } catch { }
-    }
-
-$startup = Join-Path ([Environment]::GetFolderPath("Startup")) "$AppTitle.lnk"
-$desktop = Join-Path ([Environment]::GetFolderPath("Desktop")) "$AppTitle.lnk"
-foreach ($link in @($startup, $desktop)) {
-    if (Test-Path $link) { Remove-Item $link -Force }
-}
-
-if (Test-Path $DataDir) {
-    $answer = Read-Host "Delete saved clips in $DataDir as well? (y/N)"
-    if ($answer -match "^[Yy]") {
-        Remove-Item $DataDir -Recurse -Force
+if (Test-Path $Exe) {
+    Start-Process -FilePath $Exe -ArgumentList "--uninstall" -Wait
+} elseif (Test-Path $VenvPy) {
+    & $VenvPy -m alices_clip --uninstall
+} else {
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($python) {
+        & $python.Source -m alices_clip --uninstall
     } else {
-        $venv = Join-Path $DataDir "venv"
-        if (Test-Path $venv) { Remove-Item $venv -Recurse -Force }
-        $launcher = Join-Path $DataDir "start.cmd"
-        if (Test-Path $launcher) { Remove-Item $launcher -Force }
+        throw "Alice's Clip of Holding does not appear to be installed."
     }
 }
-
-Write-Host "Uninstalled $AppTitle."
