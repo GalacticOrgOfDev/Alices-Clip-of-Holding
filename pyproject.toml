@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alices-clip-of-holding"
+version = "1.0.0"
+description = "A bag of holding for the Windows clipboard. Copy archives every item; Ctrl+V picks which one to paste."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Galactic Organization of Development" }
+]
+keywords = ["clipboard", "windows", "history", "paste"]
+dependencies = [
+  "pywin32>=306",
+  "Pillow>=10.0.0",
+  "pystray>=0.19.5",
+]
+
+[project.scripts]
+alices-clip = "alices_clip.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
