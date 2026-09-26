@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -10,11 +11,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def build_tray_icon() -> object:
-    """Create a small bag-shaped icon at runtime so install needs no assets.
-
-    Returns:
-        A Pillow ``Image`` suitable for ``pystray.Icon``.
-    """
+    """Create a small bag-shaped icon at runtime so install needs no assets."""
     from PIL import Image, ImageDraw
 
     image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
@@ -30,23 +27,13 @@ def start_tray(
     on_quit: Callable[[], None],
     icon_path: Path | None = None,
 ) -> object:
-    """Start the tray icon on a daemon thread.
-
-    Args:
-        on_open: Open the picker.
-        on_quit: Shut the application down.
-        icon_path: Optional PNG to use instead of the generated bag.
-
-    Returns:
-        The ``pystray.Icon`` instance.
-
-    Raises:
-        RuntimeError: If ``pystray`` cannot start.
-    """
+    """Start the tray icon on a daemon thread."""
     import threading
 
     import pystray
     from PIL import Image
+
+    from alices_clip.runtime import launch_spec
 
     image: Image.Image
     if icon_path is not None and icon_path.is_file():
@@ -54,12 +41,20 @@ def start_tray(
     else:
         image = build_tray_icon()
 
+    def _uninstall() -> None:
+        program, prefix = launch_spec()
+        cmd = [program]
+        if prefix:
+            cmd.extend(prefix.split())
+        cmd.append("--uninstall")
+        subprocess.Popen(cmd, close_fds=True)
+
     menu = pystray.Menu(
         pystray.MenuItem("Open bag (Ctrl+V)", lambda: on_open(), default=True),
+        pystray.MenuItem("Uninstall…", lambda: _uninstall()),
         pystray.MenuItem("Quit", lambda: on_quit()),
     )
     icon = pystray.Icon("alices_clip_of_holding", image, "Alice's Clip of Holding", menu)
-
     thread = threading.Thread(target=icon.run, name="alice-tray", daemon=True)
     thread.start()
     return icon
