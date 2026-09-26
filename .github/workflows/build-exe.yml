@@ -1,0 +1,51 @@
+name: Build Windows exe
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "packaging/**"
+      - "pyproject.toml"
+      - "requirements.txt"
+      - ".github/workflows/build-exe.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install and build
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pyinstaller
+          python -m PyInstaller --noconfirm --clean --workpath build --distpath dist packaging/AlicesClipOfHolding.spec
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlicesClipOfHolding-windows
+          path: dist/AlicesClipOfHolding.exe
+
+      - name: Release tagged build
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/AlicesClipOfHolding.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
