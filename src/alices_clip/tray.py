@@ -30,7 +30,10 @@ def start_tray(
     on_open_folder: Callable[[], None] | None = None,
     on_toggle_pause: Callable[[], None] | None = None,
     on_clear_bag: Callable[[], None] | None = None,
+    on_screenshot: Callable[[], None] | None = None,
+    on_toggle_recording: Callable[[], None] | None = None,
     paused: bool = False,
+    recording: bool = False,
     icon_path: Path | None = None,
 ) -> object:
     """Start the tray icon on a daemon thread."""
@@ -62,6 +65,11 @@ def start_tray(
     items = [
         pystray.MenuItem("Open bag", lambda: on_open(), default=True),
     ]
+    if on_screenshot is not None:
+        items.append(pystray.MenuItem("Take screenshot", lambda: on_screenshot()))
+    if on_toggle_recording is not None:
+        rec_label = "Stop recording" if recording else "Start recording"
+        items.append(pystray.MenuItem(rec_label, lambda: on_toggle_recording()))
     if on_open_folder is not None:
         items.append(pystray.MenuItem("Open clips folder", lambda: _open_folder()))
     if on_toggle_pause is not None:
