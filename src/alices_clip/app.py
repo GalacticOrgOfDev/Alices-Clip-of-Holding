@@ -10,6 +10,7 @@ from pathlib import Path
 from tkinter import messagebox, ttk
 
 from alices_clip.actions import paste_record_into_directory
+from alices_clip.capture import ScreenCapture
 from alices_clip.config import APP_TITLE, AppConfig, VK_NAMES, default_data_dir, load_config, save_config
 from alices_clip.hotkeys import HotkeyEvent, HotkeyHook, send_ctrl_v
 from alices_clip.models import ClipRecord
@@ -31,6 +32,7 @@ class AliceApp:
         self.config = config if config is not None else load_config(self.data_dir)
         self.store = ClipStore(self.data_dir, self.config)
         self.bag = ClipboardBag(self.store)
+        self.capture = ScreenCapture(self.store)
         self.hook = HotkeyHook(
             intercept_picker=self.config.intercept_picker,
             picker_vk=self.config.picker_vk,
@@ -60,15 +62,7 @@ class AliceApp:
             return 2
         self._running = True
         self.hook.start()
-        self.tray_icon = start_tray(
-            on_open=self._open_picker_safe,
-            on_quit=self.stop,
-            on_settings=self._open_settings,
-            on_open_folder=self._open_clips_folder,
-            on_toggle_pause=self._toggle_pause,
-            on_clear_bag=self._clear_bag,
-            paused=self.config.monitoring_paused,
-        )
+        self._refresh_tray()
         self.root.after(self.config.poll_ms, self._tick)
         LOGGER.info("Alice's Clip of Holding is running. Bag: %s", self.data_dir)
         try:
@@ -77,9 +71,30 @@ class AliceApp:
             self._running = False
         return 0
 
+    def _refresh_tray(self) -> None:
+        """Recreate the tray so labels (Pause/Recording) stay current."""
+        if self.tray_icon is not None:
+            try:
+                self.tray_icon.stop()
+            except Exception:
+                pass
+        self.tray_icon = start_tray(
+            on_open=self._open_picker_safe,
+            on_quit=self.stop,
+            on_settings=self._open_settings,
+            on_open_folder=self._open_clips_folder,
+            on_toggle_pause=self._toggle_pause,
+            on_clear_bag=self._clear_bag,
+            on_screenshot=self._take_screenshot,
+            on_toggle_recording=self._toggle_recording,
+            paused=self.config.monitoring_paused,
+            recording=self.capture.is_recording,
+        )
+
     def stop(self) -> None:
         """Tear down tray, hook, and Tk."""
         self._running = False
+        self.capture.stop_recording()
         if self.tray_icon is not None:
             try:
                 self.tray_icon.stop()
@@ -124,21 +139,34 @@ class AliceApp:
         """Toggle clipboard monitoring and refresh the tray."""
         self.config.monitoring_paused = not self.config.monitoring_paused
         save_config(self.data_dir, self.config)
-        # Recreate tray so the menu label updates
-        if self.tray_icon is not None:
-            try:
-                self.tray_icon.stop()
-            except Exception:
-                pass
-        self.tray_icon = start_tray(
-            on_open=self._open_picker_safe,
-            on_quit=self.stop,
-            on_settings=self._open_settings,
-            on_open_folder=self._open_clips_folder,
-            on_toggle_pause=self._toggle_pause,
-            on_clear_bag=self._clear_bag,
-            paused=self.config.monitoring_paused,
-        )
+        self._refresh_tray()
+
+    def _take_screenshot(self) -> None:
+        """Capture the primary monitor into the bag."""
+        def _done(record: ClipRecord | None) -> None:
+            if record is not None:
+                LOGGER.info("Screenshot saved: %s", record.clip_id)
+            else:
+                LOGGER.info("Screenshot skipped or failed")
+
+        self.capture.take_screenshot(on_done=_done)
+
+    def _toggle_recording(self) -> None:
+        """Start or stop a short screen recording."""
+        if self.capture.is_recording:
+            self.capture.stop_recording()
+            self._refresh_tray()
+            return
+
+        def _done(record: ClipRecord | None) -> None:
+            if record is not None:
+                LOGGER.info("Recording saved: %s", record.clip_id)
+            else:
+                LOGGER.info("Recording discarded or failed")
+            self.root.after(0, self._refresh_tray)
+
+        self.capture.start_recording(duration_s=8.0, fps=8, on_done=_done)
+        self._refresh_tray()
 
     def _clear_bag(self) -> None:
         """Ask confirmation then remove every clip."""
