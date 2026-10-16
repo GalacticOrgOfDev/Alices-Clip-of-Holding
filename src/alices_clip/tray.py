@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -26,6 +27,10 @@ def start_tray(
     on_open: Callable[[], None],
     on_quit: Callable[[], None],
     on_settings: Callable[[], None] | None = None,
+    on_open_folder: Callable[[], None] | None = None,
+    on_toggle_pause: Callable[[], None] | None = None,
+    on_clear_bag: Callable[[], None] | None = None,
+    paused: bool = False,
     icon_path: Path | None = None,
 ) -> object:
     """Start the tray icon on a daemon thread."""
@@ -50,9 +55,20 @@ def start_tray(
         cmd.append("--uninstall")
         subprocess.Popen(cmd, close_fds=True)
 
+    def _open_folder() -> None:
+        if on_open_folder is not None:
+            on_open_folder()
+
     items = [
-        pystray.MenuItem("Open bag (Ctrl+V)", lambda: on_open(), default=True),
+        pystray.MenuItem("Open bag", lambda: on_open(), default=True),
     ]
+    if on_open_folder is not None:
+        items.append(pystray.MenuItem("Open clips folder", lambda: _open_folder()))
+    if on_toggle_pause is not None:
+        label = "Resume monitoring" if paused else "Pause monitoring"
+        items.append(pystray.MenuItem(label, lambda: on_toggle_pause()))
+    if on_clear_bag is not None:
+        items.append(pystray.MenuItem("Clear bag…", lambda: on_clear_bag()))
     if on_settings is not None:
         items.append(pystray.MenuItem("Settings…", lambda: on_settings()))
     items.extend(
