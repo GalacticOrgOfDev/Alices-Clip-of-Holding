@@ -1,4 +1,4 @@
-"""Low-level Ctrl+V interception for the paste picker.
+"""Low-level hotkey interception for the paste picker.
 
 A WH_KEYBOARD_LL hook runs on a daemon thread and posts events onto a
 queue that the Tk main loop drains. Synthetic keystrokes we inject to
@@ -25,7 +25,6 @@ VK_RCONTROL = 0xA3
 VK_SHIFT = 0x10
 VK_LSHIFT = 0xA0
 VK_RSHIFT = 0xA1
-VK_V = 0x56
 LLKHF_INJECTED = 0x10
 
 HC_ACTION = 0
@@ -67,19 +66,39 @@ def _user32():
 
 
 class HotkeyHook:
-    """Installs and tears down the process-wide Ctrl+V hook."""
+    """Installs and tears down the process-wide hotkey hook."""
 
-    def __init__(self, intercept_ctrl_v: bool, allow_native_ctrl_shift_v: bool) -> None:
+    def __init__(
+        self,
+        intercept_picker: bool,
+        picker_vk: int,
+        picker_ctrl: bool,
+        picker_shift: bool,
+        allow_native: bool,
+        native_vk: int,
+        native_ctrl: bool,
+        native_shift: bool,
+    ) -> None:
         """Create the hook object. Call ``start`` to install it.
 
         Args:
-            intercept_ctrl_v: When True, Ctrl+V is swallowed and posted
-                as ``OPEN_PICKER``.
-            allow_native_ctrl_shift_v: When True, Ctrl+Shift+V is posted
-                as ``NATIVE_PASTE`` instead of opening the picker.
+            intercept_picker: When True, the picker combination opens the bag.
+            picker_vk: Virtual-key code that triggers the picker.
+            picker_ctrl: Require Control for the picker.
+            picker_shift: Require Shift for the picker.
+            allow_native: When True, the native combination pastes the OS clipboard.
+            native_vk: Virtual-key code for native paste.
+            native_ctrl: Require Control for native paste.
+            native_shift: Require Shift for native paste.
         """
-        self.intercept_ctrl_v = intercept_ctrl_v
-        self.allow_native_ctrl_shift_v = allow_native_ctrl_shift_v
+        self.intercept_picker = intercept_picker
+        self.picker_vk = picker_vk
+        self.picker_ctrl = picker_ctrl
+        self.picker_shift = picker_shift
+        self.allow_native = allow_native
+        self.native_vk = native_vk
+        self.native_ctrl = native_ctrl
+        self.native_shift = native_shift
         self.events: queue.Queue[HotkeyEvent] = queue.Queue()
         self._thread: threading.Thread | None = None
         self._hook_id = None
@@ -111,7 +130,7 @@ class HotkeyHook:
         self._suppress_injected = True
 
     def end_injected_paste(self) -> None:
-        """Resume intercepting Ctrl+V after a synthetic paste."""
+        """Resume intercepting after a synthetic paste."""
         self._suppress_injected = False
 
     def drain(self) -> list[HotkeyEvent]:
@@ -146,6 +165,16 @@ class HotkeyHook:
             self._user32.UnhookWindowsHookEx(self._hook_id)
             self._hook_id = None
 
+    def _matches(self, vk: int, want_vk: int, want_ctrl: bool, want_shift: bool) -> bool:
+        """Return True if the key and current modifiers match the requested combination."""
+        if vk != want_vk:
+            return False
+        if want_ctrl != self._ctrl_down():
+            return False
+        if want_shift != self._shift_down():
+            return False
+        return True
+
     def _callback(self, n_code: int, w_param: int, l_param: int) -> int:
         """Low-level keyboard procedure.
 
@@ -160,16 +189,15 @@ class HotkeyHook:
         if n_code == HC_ACTION and w_param in (WM_KEYDOWN, WM_SYSKEYDOWN):
             info = ctypes.cast(l_param, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
             injected = bool(info.flags & LLKHF_INJECTED)
-            if (
-                not injected
-                and not self._suppress_injected
-                and info.vkCode == VK_V
-                and self._ctrl_down()
-            ):
-                if self.allow_native_ctrl_shift_v and self._shift_down():
+            if not injected and not self._suppress_injected:
+                if self.allow_native and self._matches(
+                    info.vkCode, self.native_vk, self.native_ctrl, self.native_shift
+                ):
                     self.events.put(HotkeyEvent.NATIVE_PASTE)
                     return int(self._user32.CallNextHookEx(self._hook_id, n_code, w_param, l_param))
-                if self.intercept_ctrl_v:
+                if self.intercept_picker and self._matches(
+                    info.vkCode, self.picker_vk, self.picker_ctrl, self.picker_shift
+                ):
                     self.events.put(HotkeyEvent.OPEN_PICKER)
                     return 1
         return int(self._user32.CallNextHookEx(self._hook_id, n_code, w_param, l_param))
@@ -192,6 +220,7 @@ def send_ctrl_v() -> None:
     user32 = _user32()
     INPUT_KEYBOARD = 1
     KEYEVENTF_KEYUP = 0x0002
+    VK_V = 0x56
 
     class KEYBDINPUT(ctypes.Structure):
         _fields_ = [
