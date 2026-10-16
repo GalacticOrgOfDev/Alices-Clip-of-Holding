@@ -1,3 +1,4 @@
 pywin32>=306
 Pillow>=10.0.0
 pystray>=0.19.5
+mss>=9.0.0
