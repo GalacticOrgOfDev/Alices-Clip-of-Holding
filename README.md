@@ -8,6 +8,8 @@ Pinned clips are favorites: they stay at the top of the picker and are never pru
 
 Hotkeys, poll rate, and max clips are all configurable from the tray Settings dialog. Changes to hotkeys take effect on the next launch.
 
+Screenshots and short screen recordings join the same bag as clipboard items.
+
 ## Install
 
 ### Option A — just the `.exe` (recommended)
@@ -55,6 +57,9 @@ Cancel leaves everything installed.
 | In picker: Delete | Drop the highlighted clip from the bag |
 | Explorer: right-click file(s) → **Copy to Alice's Clip of Holding** | Those files go into the bag with their real names and extensions |
 | Explorer: right-click a folder or empty folder background → **Paste from Alice's Clip of Holding** | Picker opens; the chosen clip is written into that folder |
+| Tray → Take screenshot | Captures the primary monitor as a PNG and adds it to the bag |
+| Tray → Start recording | Records ~8 seconds of the primary monitor as an animated GIF and adds it to the bag |
+| Tray → Stop recording | Ends the recording early and saves what was captured |
 | Tray → Open clips folder | Opens the bag directory in Explorer |
 | Tray → Pause / Resume monitoring | Stops or restarts clipboard capture without quitting |
 | Tray → Clear bag… | Deletes every clip (with confirmation) |
@@ -70,10 +75,12 @@ Explorer multi-select asks the live Explorer window for every highlighted file, 
 ```text
 %LOCALAPPDATA%\\AlicesClipOfHolding\\clips\\<timestamp>\\
     meta.json
-    item.txt | item.png | item.html | item.rtf | original-name.ext
+    item.txt | item.png | item.html | item.rtf | screenshot.png | recording.gif | original-name.ext
 ```
 
 Identical consecutive payloads are not stored twice. Unpinned oldest clips prune after the configured limit (default 200). Pinned clips are always kept.
+
+Screenshots are PNG. Short recordings are animated GIFs (downscaled for size).
 
 Nothing leaves the machine.
 
