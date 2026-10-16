@@ -82,7 +82,7 @@ class ClipPicker:
         header.pack(anchor="w")
         hint = ttk.Label(
             chrome,
-            text="Enter paste · Esc close · Delete drop · P pin/unpin · Ctrl+Shift+V native",
+            text="Enter paste · Esc close · Delete drop · P pin/unpin · native hotkey pastes last OS item",
             font=("Segoe UI", 8),
         )
         hint.pack(anchor="w", pady=(0, 8))
