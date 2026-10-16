@@ -6,6 +6,8 @@ Copy still goes to the normal OS clipboard. Every copy is also written into a lo
 
 Pinned clips are favorites: they stay at the top of the picker and are never pruned, even when the bag reaches its limit.
 
+Hotkeys, poll rate, and max clips are all configurable from the tray Settings dialog. Changes to hotkeys take effect on the next launch.
+
 ## Install
 
 ### Option A — just the `.exe` (recommended)
@@ -47,13 +49,16 @@ Cancel leaves everything installed.
 | Action | Result |
 | --- | --- |
 | Ctrl+C, or an app's Copy command | OS clipboard updates **and** a new file is written into the bag |
-| Ctrl+V | Picker opens over the bag. Enter pastes the highlighted item |
-| Ctrl+Shift+V | Native last-item paste (no menu) |
+| Picker hotkey (default Ctrl+V) | Picker opens over the bag. Enter pastes the highlighted item |
+| Native paste hotkey (default Ctrl+Shift+V) | Pastes the current OS clipboard without the menu |
 | In picker: P or Pin button | Pin / unpin the highlighted clip (★ stays at top, never pruned) |
 | In picker: Delete | Drop the highlighted clip from the bag |
 | Explorer: right-click file(s) → **Copy to Alice's Clip of Holding** | Those files go into the bag with their real names and extensions |
 | Explorer: right-click a folder or empty folder background → **Paste from Alice's Clip of Holding** | Picker opens; the chosen clip is written into that folder |
-| Tray → Settings… | Change max clips, toggle Ctrl+V interception, etc. |
+| Tray → Open clips folder | Opens the bag directory in Explorer |
+| Tray → Pause / Resume monitoring | Stops or restarts clipboard capture without quitting |
+| Tray → Clear bag… | Deletes every clip (with confirmation) |
+| Tray → Settings… | Change max clips, poll interval, picker and native hotkeys (key + Ctrl/Shift) |
 | Settings → Apps → Uninstall | Prompt to keep or clear the clip folder |
 
 Other programs' own **Paste** command still pastes the current OS clipboard. After you pick an item from the bag, that item *is* the OS clipboard.
