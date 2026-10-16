@@ -40,6 +40,7 @@ class ClipRecord:
         byte_size: Size in bytes of the primary payload file.
         content_sha256: Hex digest of the primary payload. Used for de-dupe.
         source_names: Original filenames when the payload was a file drop.
+        pinned: When True the clip is kept even when the bag is pruned.
 
     Notes:
         Paths are stored as names relative to the clip folder, never as
@@ -56,6 +57,7 @@ class ClipRecord:
     byte_size: int = 0
     content_sha256: str = ""
     source_names: list[str] = field(default_factory=list)
+    pinned: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize this record to a JSON-safe dictionary.
@@ -94,4 +96,5 @@ class ClipRecord:
             byte_size=int(raw.get("byte_size", 0)),
             content_sha256=str(raw.get("content_sha256", "")),
             source_names=[str(name) for name in raw.get("source_names", [])],
+            pinned=bool(raw.get("pinned", False)),
         )
